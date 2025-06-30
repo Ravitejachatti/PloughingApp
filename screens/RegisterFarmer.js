@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -34,6 +34,20 @@ export default function RegistrationScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
   const [progress] = useState(new Animated.Value(0));
+
+  // Create refs for all input fields to manage focus programmatically
+  const inputRefs = useRef({
+    name: null,
+    farmId: null,
+    phone: null,
+    village: null,
+    district: null,
+    state: null,
+    farmSize: null,
+    cropType: null,
+    operatorName: null,
+    operatorPhone: null
+  });
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -88,8 +102,9 @@ export default function RegistrationScreen({ navigation }) {
     value, 
     onChangeText, 
     keyboardType = 'default',
-    icon,
-    field
+    field,
+    returnKeyType = 'next',
+    onSubmitEditing
   }) => (
     <View style={[
       styles.inputContainer,
@@ -97,6 +112,7 @@ export default function RegistrationScreen({ navigation }) {
     ]}>
       <Text style={styles.inputLabel}>{placeholder}</Text>
       <TextInput
+        ref={(ref) => inputRefs.current[field] = ref}
         style={[
           styles.input,
           focusedField === field && styles.inputFocused
@@ -106,22 +122,36 @@ export default function RegistrationScreen({ navigation }) {
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
         onFocus={() => setFocusedField(field)}
         onBlur={() => setFocusedField(null)}
+        autoCorrect={false}
+        autoCapitalize={keyboardType === 'email-address' ? 'none' : 'words'}
+        blurOnSubmit={false}
       />
     </View>
   );
+
+  // Helper function to focus next field
+  const focusNextField = (nextField) => {
+    if (inputRefs.current[nextField]) {
+      inputRefs.current[nextField].focus();
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -160,6 +190,7 @@ export default function RegistrationScreen({ navigation }) {
                 value={formData.name}
                 onChangeText={(value) => updateField('name', value)}
                 field="name"
+                onSubmitEditing={() => focusNextField('farmId')}
               />
               
               <InputField
@@ -167,6 +198,7 @@ export default function RegistrationScreen({ navigation }) {
                 value={formData.farmId}
                 onChangeText={(value) => updateField('farmId', value)}
                 field="farmId"
+                onSubmitEditing={() => focusNextField('phone')}
               />
               
               <InputField
@@ -175,6 +207,7 @@ export default function RegistrationScreen({ navigation }) {
                 onChangeText={(value) => updateField('phone', value)}
                 keyboardType="phone-pad"
                 field="phone"
+                onSubmitEditing={() => focusNextField('village')}
               />
             </View>
 
@@ -187,6 +220,7 @@ export default function RegistrationScreen({ navigation }) {
                 value={formData.village}
                 onChangeText={(value) => updateField('village', value)}
                 field="village"
+                onSubmitEditing={() => focusNextField('district')}
               />
               
               <InputField
@@ -194,6 +228,7 @@ export default function RegistrationScreen({ navigation }) {
                 value={formData.district}
                 onChangeText={(value) => updateField('district', value)}
                 field="district"
+                onSubmitEditing={() => focusNextField('state')}
               />
               
               <InputField
@@ -201,6 +236,7 @@ export default function RegistrationScreen({ navigation }) {
                 value={formData.state}
                 onChangeText={(value) => updateField('state', value)}
                 field="state"
+                onSubmitEditing={() => focusNextField('farmSize')}
               />
             </View>
 
@@ -214,6 +250,7 @@ export default function RegistrationScreen({ navigation }) {
                 onChangeText={(value) => updateField('farmSize', value)}
                 keyboardType="numeric"
                 field="farmSize"
+                onSubmitEditing={() => focusNextField('cropType')}
               />
               
               <InputField
@@ -221,6 +258,7 @@ export default function RegistrationScreen({ navigation }) {
                 value={formData.cropType}
                 onChangeText={(value) => updateField('cropType', value)}
                 field="cropType"
+                onSubmitEditing={() => focusNextField('operatorName')}
               />
             </View>
 
@@ -233,6 +271,7 @@ export default function RegistrationScreen({ navigation }) {
                 value={formData.operatorName}
                 onChangeText={(value) => updateField('operatorName', value)}
                 field="operatorName"
+                onSubmitEditing={() => focusNextField('operatorPhone')}
               />
               
               <InputField
@@ -241,6 +280,8 @@ export default function RegistrationScreen({ navigation }) {
                 onChangeText={(value) => updateField('operatorPhone', value)}
                 keyboardType="phone-pad"
                 field="operatorPhone"
+                returnKeyType="done"
+                onSubmitEditing={onSubmit}
               />
             </View>
 
@@ -258,7 +299,6 @@ export default function RegistrationScreen({ navigation }) {
                 {loading ? 'Registering...' : 'Continue to Boundary Mapping'}
               </Text>
               {!loading && <Text style={styles.submitButtonIcon}>→</Text>}
-              }
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -348,7 +388,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inputContainerFocused: {
-    transform: [{ scale: 1.02 }],
+    // Remove transform scale to prevent layout issues
   },
   inputLabel: {
     fontSize: 14,
@@ -365,7 +405,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: '#1F2937',
-    transition: 'all 0.2s ease',
+    minHeight: 50,
   },
   inputFocused: {
     borderColor: '#10B981',
