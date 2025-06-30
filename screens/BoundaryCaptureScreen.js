@@ -332,6 +332,7 @@ export default function BoundaryScreen({ route, navigation }) {
             {saving ? 'Saving Boundary...' : 'Complete Boundary Mapping'}
           </Text>
           {!saving && <Text style={styles.finishButtonIcon}>✓</Text>}
+          }
         </TouchableOpacity>
       </View>
     </SafeAreaView>
