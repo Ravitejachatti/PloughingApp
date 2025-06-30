@@ -1,102 +1,264 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert, 
+  ScrollView, 
+  KeyboardAvoidingView, 
+  Platform, 
+  SafeAreaView,
+  Animated,
+  Dimensions
+} from 'react-native';
 
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwoOdpKTRjgYi_g_VbqOSOx0XUPf1FbjFKw-jptAF55SS_JdLkV36R13blnePhdX60LMA/exec';
 
+const { width } = Dimensions.get('window');
+
 export default function RegistrationScreen({ navigation }) {
-  const [name, setName] = useState('');
-  const [farmId, setFarmId] = useState('');
-  const [phone, setPhone] = useState('');
-  const [village, setVillage] = useState('');
-  const [district, setDistrict] = useState('');
-  const [state, setState] = useState('');
-  const [farmSize, setFarmSize] = useState('');
-  const [cropType, setCropType] = useState('');
-  const [operatorName, setOperatorName] = useState('');
-  const [operatorPhone, setOperatorPhone] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    farmId: '',
+    phone: '',
+    village: '',
+    district: '',
+    state: '',
+    farmSize: '',
+    cropType: '',
+    operatorName: '',
+    operatorPhone: ''
+  });
   const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
+  const [progress] = useState(new Animated.Value(0));
+
+  const updateField = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Update progress animation
+    const filledFields = Object.values({ ...formData, [field]: value }).filter(val => val.trim()).length;
+    const progressValue = filledFields / 10;
+    Animated.timing(progress, {
+      toValue: progressValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
 
   const onSubmit = async () => {
-    if (
-      !name.trim() || !farmId.trim() || !phone.trim() || !village.trim() ||
-      !district.trim() || !state.trim() || !farmSize.trim() || !cropType.trim() ||
-      !operatorName.trim() || !operatorPhone.trim()
-    ) {
-      Alert.alert('Validation', 'Please fill all fields.');
+    const requiredFields = Object.values(formData);
+    if (requiredFields.some(field => !field.trim())) {
+      Alert.alert('Incomplete Form', 'Please fill all fields to continue.');
       return;
     }
+
     setLoading(true);
     try {
       const res = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          id: `M0${farmId}`,
-          phone,
-          village,
-          district,
-          state,
-          farmSize,
-          cropType,
-          operatorName,
-          operatorPhone
+          ...formData,
+          id: `M0${formData.farmId}`,
         }),
       });
       const data = await res.json();
       if (data.result === 'success') {
         navigation.replace('Boundary', {
           farmer: {
-            name,
-            id: `M0${farmId}`,
-            phone,
-            village,
-            district,
-            state,
-            farmSize,
-            cropType,
-            operatorName,
-            operatorPhone
+            ...formData,
+            id: `M0${formData.farmId}`,
           }
         });
       } else {
-        Alert.alert('Error', 'Failed to register farmer.');
+        Alert.alert('Registration Failed', 'Unable to register farmer. Please try again.');
       }
     } catch (e) {
       console.error('Registration error:', e);
-      Alert.alert('Error', 'Failed to connect to Google Sheets.');
+      Alert.alert('Connection Error', 'Please check your internet connection and try again.');
     }
     setLoading(false);
   };
 
+  const InputField = ({ 
+    placeholder, 
+    value, 
+    onChangeText, 
+    keyboardType = 'default',
+    icon,
+    field
+  }) => (
+    <View style={[
+      styles.inputContainer,
+      focusedField === field && styles.inputContainerFocused
+    ]}>
+      <Text style={styles.inputLabel}>{placeholder}</Text>
+      <TextInput
+        style={[
+          styles.input,
+          focusedField === field && styles.inputFocused
+        ]}
+        placeholder={`Enter ${placeholder.toLowerCase()}`}
+        placeholderTextColor="#9CA3AF"
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
+        onFocus={() => setFocusedField(field)}
+        onBlur={() => setFocusedField(null)}
+      />
+    </View>
+  );
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f2f6fc' }}>
+    <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        // keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 40}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            <Text style={styles.title}>Register Farmer</Text>
-            <TextInput style={styles.input} placeholder="Farmer Name" value={name} onChangeText={setName} />
-            <TextInput style={styles.input} placeholder="Farm ID" value={farmId} onChangeText={setFarmId} />
-            <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-            <TextInput style={styles.input} placeholder="Village" value={village} onChangeText={setVillage} />
-            <TextInput style={styles.input} placeholder="District" value={district} onChangeText={setDistrict} />
-            <TextInput style={styles.input} placeholder="State" value={state} onChangeText={setState} />
-            <TextInput style={styles.input} placeholder="Farm Size (acres)" value={farmSize} onChangeText={setFarmSize} keyboardType="numeric" />
-            <TextInput style={styles.input} placeholder="Crop Type" value={cropType} onChangeText={setCropType} />
-            <View style={styles.sectionDivider} />
-            <Text style={styles.sectionTitle}>Operator Details</Text>
-            <TextInput style={styles.input} placeholder="Operator Name" value={operatorName} onChangeText={setOperatorName} />
-            <TextInput style={styles.input} placeholder="Operator Phone Number" value={operatorPhone} onChangeText={setOperatorPhone} keyboardType="phone-pad" />
-            <View style={{ height: 18 }} />
-            <Button title={loading ? "Registering..." : "Next"} onPress={onSubmit} disabled={loading} color="#2980ff" />
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Farmer Registration</Text>
+            <Text style={styles.subtitle}>Complete your profile to get started</Text>
+            
+            {/* Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressTrack}>
+                <Animated.View 
+                  style={[
+                    styles.progressBar,
+                    {
+                      width: progress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {Object.values(formData).filter(val => val.trim()).length}/10 fields completed
+              </Text>
+            </View>
+          </View>
+
+          {/* Form Card */}
+          <View style={styles.formCard}>
+            {/* Farmer Information Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>👨‍🌾 Farmer Information</Text>
+              
+              <InputField
+                placeholder="Farmer Name"
+                value={formData.name}
+                onChangeText={(value) => updateField('name', value)}
+                field="name"
+              />
+              
+              <InputField
+                placeholder="Farm ID"
+                value={formData.farmId}
+                onChangeText={(value) => updateField('farmId', value)}
+                field="farmId"
+              />
+              
+              <InputField
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChangeText={(value) => updateField('phone', value)}
+                keyboardType="phone-pad"
+                field="phone"
+              />
+            </View>
+
+            {/* Location Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>📍 Location Details</Text>
+              
+              <InputField
+                placeholder="Village"
+                value={formData.village}
+                onChangeText={(value) => updateField('village', value)}
+                field="village"
+              />
+              
+              <InputField
+                placeholder="District"
+                value={formData.district}
+                onChangeText={(value) => updateField('district', value)}
+                field="district"
+              />
+              
+              <InputField
+                placeholder="State"
+                value={formData.state}
+                onChangeText={(value) => updateField('state', value)}
+                field="state"
+              />
+            </View>
+
+            {/* Farm Details Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🌾 Farm Details</Text>
+              
+              <InputField
+                placeholder="Farm Size (acres)"
+                value={formData.farmSize}
+                onChangeText={(value) => updateField('farmSize', value)}
+                keyboardType="numeric"
+                field="farmSize"
+              />
+              
+              <InputField
+                placeholder="Crop Type"
+                value={formData.cropType}
+                onChangeText={(value) => updateField('cropType', value)}
+                field="cropType"
+              />
+            </View>
+
+            {/* Operator Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🚜 Operator Details</Text>
+              
+              <InputField
+                placeholder="Operator Name"
+                value={formData.operatorName}
+                onChangeText={(value) => updateField('operatorName', value)}
+                field="operatorName"
+              />
+              
+              <InputField
+                placeholder="Operator Phone"
+                value={formData.operatorPhone}
+                onChangeText={(value) => updateField('operatorPhone', value)}
+                keyboardType="phone-pad"
+                field="operatorPhone"
+              />
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                loading && styles.submitButtonDisabled
+              ]}
+              onPress={onSubmit}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.submitButtonText}>
+                {loading ? 'Registering...' : 'Continue to Boundary Mapping'}
+              </Text>
+              {!loading && <Text style={styles.submitButtonIcon}>→</Text>}
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -105,38 +267,149 @@ export default function RegistrationScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, alignItems: 'center', padding: 24 },
-  card: {
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  header: {
+    paddingTop: 20,
+    paddingBottom: 30,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  progressContainer: {
     width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    alignItems: 'center',
+  },
+  progressTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
-    shadowOpacity: 0.13,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    elevation: 8,
   },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, color: '#2d3a4a', textAlign: 'center' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#c3d0e0',
-    backgroundColor: '#f7fbff',
-    padding: 14,
-    marginBottom: 14,
-    borderRadius: 8,
-    fontSize: 16,
-  },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: '#e0e6ef',
-    marginVertical: 16,
+  section: {
+    marginBottom: 32,
   },
   sectionTitle: {
     fontSize: 18,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 20,
+    paddingBottom: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: '#F3F4F6',
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputContainerFocused: {
+    transform: [{ scale: 1.02 }],
+  },
+  inputLabel: {
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 10,
-    color: '#3a4d63',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#1F2937',
+    transition: 'all 0.2s ease',
+  },
+  inputFocused: {
+    borderColor: '#10B981',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#10B981',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+    marginTop: 8,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginRight: 8,
+  },
+  submitButtonIcon: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600',
   },
 });
