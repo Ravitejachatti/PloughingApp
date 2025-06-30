@@ -299,6 +299,7 @@ export default function RegistrationScreen({ navigation }) {
                 {loading ? 'Registering...' : 'Continue to Boundary Mapping'}
               </Text>
               {!loading && <Text style={styles.submitButtonIcon}>→</Text>}
+              }
             </TouchableOpacity>
           </View>
         </ScrollView>
